@@ -1,14 +1,15 @@
 // Orthographic voxels: small, deterministic SVG geometry, without a 3D runtime.
 (() => {
   const NS = 'http://www.w3.org/2000/svg';
-  const palettes = { light: ['#e3e6e7','#cbd0d4','#abb4be'], medium: ['#b9c2ca','#8795a3','#65778b'], dark: ['#697c93','#42566e','#2e4158'] };
+  const palettes = { light: ['#dce8e2','#b9d0c5','#92b1a4'], medium: ['#a5c7b9','#79a695','#518875'], dark: ['#658f9e','#486f82','#335164'] };
   function polygon(points, fill) {
     const p = document.createElementNS(NS, 'polygon');
     p.setAttribute('points', points.map(v => v.join(',')).join(' '));
-    p.setAttribute('fill', fill); p.setAttribute('stroke', '#fafaf8'); p.setAttribute('stroke-width', '.65');
+    p.setAttribute('fill', fill); p.setAttribute('stroke', 'var(--tint)'); p.setAttribute('stroke-width', '.65');
     return p;
   }
   function draw(svg, blocks, scale, origin) {
+    if (!svg || !blocks) return;
     const project = (x,y,z) => [origin[0]+(x-y)*scale, origin[1]+(x+y)*scale*.5-z*scale*1.05];
     blocks.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]) || a[2]-b[2]);
     for (const [x,y,z,tone='light'] of blocks) {
@@ -25,7 +26,22 @@
     for(let z=0;z<height;z++)hero.push([x,y,z,(x===3&&y===3)||(x===4&&y===2&&z===height-1)?'dark':z>1?'medium':'light']);
   }
   hero.push([7,3,0,'light'],[2,8,0,'medium']);
-  draw(document.querySelector('#voxel-world'),hero,23,[203,132]);
+  const world = document.querySelector('#voxel-world');
+  let turns = 0;
+  function renderWorld() {
+    if (!world) return;
+    world.replaceChildren();
+    const rotated = hero.map(([x,y,z,tone]) => {
+      for (let i=0;i<turns;i++) [x,y]=[8-y,x];
+      return [x,y,z,tone];
+    });
+    draw(world,rotated,23,[203,112]);
+    world.setAttribute('aria-label', 'An abstract landscape of grey, green and blue cubes, viewed at '+(turns*90)+' degrees');
+  }
+  renderWorld();
+  const turnButton = document.querySelector('[data-world-turn]');
+  if (turnButton && world) turnButton.hidden = false;
+  turnButton?.addEventListener('click', () => { turns=(turns+1)%4; renderWorld(); });
   const scenes={logic:[],path:[],books:[],museum:[]};
   for(let x=0;x<4;x++)for(let y=0;y<4;y++)if((x+y)%2===0||x===1)scenes.logic.push([x,y,0,x===2?'dark':'light']);
   scenes.logic.push([1,1,1,'medium'],[1,1,2,'dark'],[3,3,1,'medium']);
@@ -36,4 +52,26 @@
   for(const x of [0,2,4])for(let z=1;z<3;z++)scenes.museum.push([x,1,z,'medium']);
   for(let x=0;x<5;x++)scenes.museum.push([x,1,3,'light']);
   document.querySelectorAll('[data-voxel]').forEach(svg=>draw(svg,scenes[svg.dataset.voxel],18,[119,90]));
+})();
+
+// A small, persistent reading preference shared by all pages.
+(() => {
+  const button = document.querySelector('[data-theme-toggle]');
+  let theme = 'light';
+  try { theme = localStorage.getItem('krishiv-theme') === 'dark' ? 'dark' : 'light'; } catch (_) {}
+  function apply() {
+    document.documentElement.dataset.theme = theme;
+    if (button) {
+      button.textContent = theme === 'dark' ? '☀' : '◐';
+      button.setAttribute('aria-label', 'Switch to '+(theme === 'dark' ? 'light' : 'dark')+' theme');
+      button.setAttribute('title', button.getAttribute('aria-label'));
+    }
+  }
+  apply();
+  if (button) button.hidden = false;
+  button?.addEventListener('click', () => {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    apply();
+    try { localStorage.setItem('krishiv-theme', theme); } catch (_) {}
+  });
 })();
